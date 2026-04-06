@@ -168,10 +168,13 @@ async function startAnalysis() {
 
   setLoading(true);
 
+  const workType = document.getElementById('workTypeSelect').value;
+  const workTypeLine = workType ? `\n[현장 공종: ${workType}]\n이 공종의 법정 필수 점검항목을 반드시 포함하세요.\n` : '';
+
   const prompt = `당신은 건설현장 안전점검 전문가입니다.
 업로드된 현장 사진을 분석하고, 아래 산업안전 및 건설 안전 지침을 근거로 현장 안전점검 체크리스트를 작성하세요.
 각 항목은 실제 현장에서 사용할 수 있는 점검 항목 형태로 작성하고, 근거 법령 조항을 함께 표시하세요.
-
+${workTypeLine}
 ${SAFETY_GUIDELINES}
 
 [규칙]
