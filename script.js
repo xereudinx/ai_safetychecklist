@@ -276,57 +276,113 @@ async function downloadPDF() {
   if (!checklistData) return;
   showToast('PDF 생성 중...');
 
-  // Create a full-screen visible overlay (mobile Safari needs visible elements)
+  // Create visible overlay for html2canvas (mobile Safari requires visible elements)
   const overlay = document.createElement('div');
   overlay.id = 'pdfOverlay';
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;background:#fff;overflow:auto;';
 
   const container = document.createElement('div');
-  container.style.cssText = 'width:100%;max-width:680px;margin:0 auto;padding:32px 28px;font-family:"Noto Sans KR",sans-serif;color:#1a1d23;background:#fff;line-height:1.6;';
+  container.style.cssText = 'width:680px;margin:0 auto;padding:30px 36px;font-family:"Noto Sans KR",sans-serif;color:#1a1d23;background:#fff;line-height:1.6;';
 
-  let html = `<h1 style="font-size:18px;text-align:center;margin:0 0 4px;font-weight:800;">현장 안전점검 체크리스트</h1>`;
-  html += `<p style="text-align:center;font-size:10px;color:#888;margin:0 0 8px;">${resultMeta.textContent}</p>`;
-  if (checklistData.site_summary) {
-    html += `<p style="font-size:11px;color:#555;margin:0 0 10px;">📍 ${checklistData.site_summary}</p>`;
+  // Title
+  let html = `<h1 style="font-size:17px;text-align:center;margin:0 0 2px;font-weight:800;">현장 안전점검 체크리스트</h1>`;
+  html += `<p style="text-align:center;font-size:9px;color:#888;margin:0 0 12px;">${resultMeta.textContent}</p>`;
+
+  // Photo thumbnail
+  if (compressedBase64) {
+    html += `<div style="text-align:center;margin-bottom:12px;">`;
+    html += `<img src="data:image/jpeg;base64,${compressedBase64}" style="max-width:280px;max-height:180px;border-radius:6px;border:1px solid #ddd;">`;
+    html += `</div>`;
   }
-  html += `<hr style="border:none;border-top:1px solid #ddd;margin:0 0 14px;">`;
 
+  // Summary
+  if (checklistData.site_summary) {
+    html += `<div style="background:#f8f9fa;padding:8px 12px;border-radius:6px;margin-bottom:12px;font-size:11px;color:#333;">📍 ${checklistData.site_summary}</div>`;
+  }
+
+  html += `<hr style="border:none;border-top:1px solid #ddd;margin:0 0 12px;">`;
+
+  // Checklist groups
   (checklistData.groups || []).forEach(group => {
-    html += `<div style="margin-bottom:14px;">`;
-    html += `<div style="font-size:12px;font-weight:700;padding-bottom:4px;border-bottom:1px solid #eee;margin-bottom:6px;">${group.title}</div>`;
+    html += `<div style="margin-bottom:12px;">`;
+    html += `<div style="font-size:11px;font-weight:700;padding-bottom:3px;border-bottom:1px solid #eee;margin-bottom:5px;">${group.title}</div>`;
     (group.items || []).forEach(item => {
       const color = item.level === '위험' ? '#d92b2b' : item.level === '주의' ? '#e08a00' : '#0a8a3d';
       const bg = item.level === '위험' ? '#fde8e8' : item.level === '주의' ? '#fef3e0' : '#e4f5eb';
-      html += `<div style="padding:4px 0;font-size:11px;">
-        <span>☐ </span>
-        <span>${item.text}</span>
-        <span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:4px;background:${bg};color:${color};margin-left:4px;">${item.level}</span>
-      </div>`;
+      html += `<div style="padding:3px 0;font-size:10px;line-height:1.5;">`;
+      html += `<span>☐ </span>`;
+      html += `<span>${item.text}</span>`;
+      html += `<span style="font-size:8px;font-weight:600;padding:1px 5px;border-radius:3px;background:${bg};color:${color};margin-left:3px;">${item.level}</span>`;
+      html += `</div>`;
     });
     html += `</div>`;
   });
 
-  html += `<p style="text-align:center;font-size:7px;color:#bbb;margin-top:20px;">AI 안전점검 체크리스트 시스템</p>`;
+  html += `<p style="text-align:center;font-size:7px;color:#bbb;margin-top:16px;">AI 안전점검 체크리스트 시스템</p>`;
+
   container.innerHTML = html;
   overlay.appendChild(container);
   document.body.appendChild(overlay);
 
-  // Wait for fonts + rendering
+  // Wait for image + fonts to render
   try { await document.fonts.ready; } catch(e) {}
-  await new Promise(r => setTimeout(r, 500));
-
-  const filename = `safety_checklist_${new Date().toISOString().slice(0,10)}.pdf`;
+  await new Promise(r => setTimeout(r, 600));
 
   try {
-    await html2pdf().set({
-      margin: [10, 10, 10, 10],
-      filename: filename,
-      image: { type: 'jpeg', quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, windowWidth: 680 },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    }).from(container).save();
+    // Capture with html2canvas
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      scrollY: 0,
+      windowWidth: 680,
+      backgroundColor: '#ffffff'
+    });
+
+    // Create PDF with jsPDF
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const margin = 8;
+    const contentWidth = pageWidth - margin * 2;
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    const imgRatio = canvas.height / canvas.width;
+    const imgHeight = contentWidth * imgRatio;
+
+    if (imgHeight <= pageHeight - margin * 2) {
+      // Fits on one page
+      pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, imgHeight);
+    } else {
+      // Multi-page: slice the canvas
+      const pxPerPage = canvas.width * ((pageHeight - margin * 2) / contentWidth);
+      let srcY = 0;
+      let page = 0;
+      while (srcY < canvas.height) {
+        if (page > 0) pdf.addPage();
+        const sliceH = Math.min(pxPerPage, canvas.height - srcY);
+
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sliceH;
+        const ctx = sliceCanvas.getContext('2d');
+        ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+
+        const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+        const sliceRenderH = contentWidth * (sliceH / canvas.width);
+        pdf.addImage(sliceData, 'JPEG', margin, margin, contentWidth, sliceRenderH);
+
+        srcY += sliceH;
+        page++;
+      }
+    }
+
+    pdf.save('현장_안전점검_보고서.pdf');
     showToast('PDF 다운로드 완료');
   } catch(e) {
+    console.error('PDF error:', e);
     showToast('PDF 생성 중 오류가 발생했습니다', true);
   } finally {
     document.body.removeChild(overlay);
