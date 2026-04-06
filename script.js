@@ -1,6 +1,7 @@
 // === State ===
 let compressedBase64 = null;
 let checklistData = null;
+let guidelinesDocs = []; // { name, sizeKB, base64 }
 
 // === Safety Guidelines (built-in) ===
 const SAFETY_GUIDELINES = `
@@ -57,6 +58,56 @@ fileInput.addEventListener('change', async (e) => {
   }
 });
 
+// === Guidelines PDF Upload ===
+document.getElementById('guidelinesInput').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files);
+  for (const file of files) {
+    if (file.type !== 'application/pdf') {
+      showToast(`${file.name}은 PDF가 아닙니다`, true);
+      continue;
+    }
+    if (guidelinesDocs.some(d => d.name === file.name)) {
+      showToast(`${file.name}은 이미 등록되어 있습니다`, true);
+      continue;
+    }
+    try {
+      const base64 = await fileToBase64(file);
+      guidelinesDocs.push({ name: file.name, sizeKB: Math.round(file.size / 1024), base64 });
+    } catch (err) {
+      showToast(`${file.name} 읽기 실패`, true);
+    }
+  }
+  renderGuidelinesList();
+  e.target.value = '';
+});
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = () => reject(new Error('Read failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderGuidelinesList() {
+  const list = document.getElementById('guidelinesList');
+  const count = document.getElementById('guidelinesCount');
+  count.textContent = `${guidelinesDocs.length}개 등록`;
+  list.innerHTML = guidelinesDocs.map((doc, i) =>
+    `<div class="guideline-item">
+      <span class="name">📄 ${doc.name}</span>
+      <span class="size">${doc.sizeKB} KB</span>
+      <button class="remove" onclick="removeGuideline(${i})">✕</button>
+    </div>`
+  ).join('');
+}
+
+function removeGuideline(index) {
+  guidelinesDocs.splice(index, 1);
+  renderGuidelinesList();
+}
+
 // === Image Compression ===
 function compressImage(file, maxDim, quality) {
   return new Promise((resolve, reject) => {
@@ -95,7 +146,33 @@ async function startAnalysis() {
 
   setLoading(true);
 
-  const prompt = `당신은 건설현장 안전점검 전문가입니다.
+  const prompt = guidelinesDocs.length > 0
+    ? `당신은 건설현장 안전점검 전문가입니다.
+업로드된 현장 사진을 분석하고, 제공된 산업안전 및 건설 안전 지침 문서를 근거로 현장 안전점검 체크리스트를 작성하세요.
+각 체크리스트는 실제 현장에서 사용할 수 있는 점검 항목 형태로 작성하고, 중요 위험 요소는 우선순위를 높게 표시하세요.
+아래 기본 안전점검 항목도 함께 참고하세요.
+
+${SAFETY_GUIDELINES}
+
+[규칙]
+- 사진에서 관찰되는 상황과 안전 지침 문서 내용을 결합하여 10~15개 항목 생성
+- 각 항목에 위험도를 판단: "위험", "주의", "양호" 중 택1
+- 사진에서 보이는 구체적 상황을 반영할 것
+- 지침 문서에서 근거 조항이 있으면 항목에 포함할 것
+
+[출력 형식 - 반드시 JSON만 출력, 다른 텍스트 없이]
+{
+  "site_summary": "현장 요약 (1문장)",
+  "groups": [
+    {
+      "title": "카테고리명",
+      "items": [
+        { "text": "점검 항목 내용", "level": "위험|주의|양호" }
+      ]
+    }
+  ]
+}`
+    : `당신은 건설현장 안전점검 전문가입니다.
 첨부된 현장 사진을 분석하고, 아래 안전 지침 데이터를 참고하여 안전점검 체크리스트를 JSON 형식으로 생성하세요.
 
 ${SAFETY_GUIDELINES}
@@ -118,6 +195,17 @@ ${SAFETY_GUIDELINES}
   ]
 }`;
 
+  // Build content array: guidelines PDFs + photo + prompt
+  const contentBlocks = [];
+  guidelinesDocs.forEach(doc => {
+    contentBlocks.push({
+      type: 'document',
+      source: { type: 'base64', media_type: 'application/pdf', data: doc.base64 }
+    });
+  });
+  contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: compressedBase64 } });
+  contentBlocks.push({ type: 'text', text: prompt });
+
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -132,10 +220,7 @@ ${SAFETY_GUIDELINES}
         max_tokens: 2000,
         messages: [{
           role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: compressedBase64 } },
-            { type: 'text', text: prompt }
-          ]
+          content: contentBlocks
         }]
       })
     });

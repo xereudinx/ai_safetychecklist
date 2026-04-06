@@ -152,6 +152,73 @@ body {
   justify-content: space-between;
 }
 
+/* Guidelines */
+.guidelines-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.btn-guidelines-add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--accent-light);
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-appearance: none;
+}
+.btn-guidelines-add:active { opacity: 0.7; }
+.guidelines-count {
+  font-size: 12px;
+  color: var(--text2);
+  font-weight: 500;
+}
+.guidelines-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.guideline-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.guideline-item .name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 8px;
+}
+.guideline-item .size {
+  font-size: 11px;
+  color: var(--text2);
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+.guideline-item .remove {
+  width: 24px; height: 24px;
+  border: none;
+  background: none;
+  color: var(--danger);
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  line-height: 1;
+}
+
 /* Analyze Button */
 .btn-analyze {
   width: 100%;

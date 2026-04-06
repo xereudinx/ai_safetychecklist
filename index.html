@@ -34,6 +34,21 @@
       <p class="hint">API Key는 서버로 전송되지 않으며 브라우저에서만 사용됩니다</p>
     </section>
 
+    <!-- Guidelines -->
+    <section class="card" id="guidelinesSection">
+      <div class="card-label">안전지침 문서 (PDF)</div>
+      <div class="guidelines-top">
+        <button class="btn-guidelines-add" onclick="document.getElementById('guidelinesInput').click()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          문서 추가
+        </button>
+        <input type="file" id="guidelinesInput" accept="application/pdf" multiple hidden>
+        <span class="guidelines-count" id="guidelinesCount">0개 등록</span>
+      </div>
+      <div class="guidelines-list" id="guidelinesList"></div>
+      <p class="hint">등록된 문서는 사진 분석 시 자동으로 AI에 함께 전달됩니다</p>
+    </section>
+
     <!-- Upload -->
     <section class="card" id="uploadSection">
       <div class="card-label">현장 사진</div>
