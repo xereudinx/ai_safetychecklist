@@ -406,9 +406,13 @@ function toggleApiKey() {
 function saveApiKey() {
   const key = document.getElementById('apiKeyInput').value.trim();
   if (!key) { showToast('API Key를 입력해주세요', true); return; }
-  localStorage.setItem('claude_api_key', key);
-  showSavedState();
-  showToast('API Key가 저장되었습니다');
+  try {
+    localStorage.setItem('claude_api_key', key);
+    showSavedState();
+    showToast('API Key가 저장되었습니다');
+  } catch(e) {
+    showToast('저장 실패: 브라우저 설정을 확인하세요', true);
+  }
 }
 
 function changeApiKey() {
@@ -416,6 +420,7 @@ function changeApiKey() {
   document.getElementById('apiKeyInput').value = '';
   document.getElementById('apiInputRow').style.display = 'flex';
   document.getElementById('apiSavedRow').style.display = 'none';
+  document.getElementById('apiKeyInput').focus();
 }
 
 function showSavedState() {
@@ -423,8 +428,10 @@ function showSavedState() {
   document.getElementById('apiSavedRow').style.display = 'flex';
 }
 
-// On page load: check localStorage
-(function() {
-  const saved = localStorage.getItem('claude_api_key');
-  if (saved) showSavedState();
-})();
+// On page load: restore saved API key
+document.addEventListener('DOMContentLoaded', function() {
+  try {
+    const saved = localStorage.getItem('claude_api_key');
+    if (saved) showSavedState();
+  } catch(e) {}
+});
