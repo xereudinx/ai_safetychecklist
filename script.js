@@ -201,9 +201,13 @@ async function downloadPDF() {
   if (!checklistData) return;
   showToast('PDF 생성 중...');
 
-  // Build printable container
+  // Create a full-screen visible overlay (mobile Safari needs visible elements)
+  const overlay = document.createElement('div');
+  overlay.id = 'pdfOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;background:#fff;overflow:auto;';
+
   const container = document.createElement('div');
-  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:680px;padding:36px 40px;font-family:"Noto Sans KR",sans-serif;color:#1a1d23;background:#fff;line-height:1.6;';
+  container.style.cssText = 'width:100%;max-width:680px;margin:0 auto;padding:32px 28px;font-family:"Noto Sans KR",sans-serif;color:#1a1d23;background:#fff;line-height:1.6;';
 
   let html = `<h1 style="font-size:18px;text-align:center;margin:0 0 4px;font-weight:800;">현장 안전점검 체크리스트</h1>`;
   html += `<p style="text-align:center;font-size:10px;color:#888;margin:0 0 8px;">${resultMeta.textContent}</p>`;
@@ -218,10 +222,10 @@ async function downloadPDF() {
     (group.items || []).forEach(item => {
       const color = item.level === '위험' ? '#d92b2b' : item.level === '주의' ? '#e08a00' : '#0a8a3d';
       const bg = item.level === '위험' ? '#fde8e8' : item.level === '주의' ? '#fef3e0' : '#e4f5eb';
-      html += `<div style="display:flex;align-items:baseline;gap:6px;padding:4px 0;font-size:11px;">
-        <span>☐</span>
-        <span style="flex:1;">${item.text}</span>
-        <span style="white-space:nowrap;font-size:9px;font-weight:600;padding:1px 6px;border-radius:4px;background:${bg};color:${color};">${item.level}</span>
+      html += `<div style="padding:4px 0;font-size:11px;">
+        <span>☐ </span>
+        <span>${item.text}</span>
+        <span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:4px;background:${bg};color:${color};margin-left:4px;">${item.level}</span>
       </div>`;
     });
     html += `</div>`;
@@ -229,11 +233,12 @@ async function downloadPDF() {
 
   html += `<p style="text-align:center;font-size:7px;color:#bbb;margin-top:20px;">AI 안전점검 체크리스트 시스템</p>`;
   container.innerHTML = html;
-  document.body.appendChild(container);
+  overlay.appendChild(container);
+  document.body.appendChild(overlay);
 
-  // Wait for fonts to render
+  // Wait for fonts + rendering
   try { await document.fonts.ready; } catch(e) {}
-  await new Promise(r => setTimeout(r, 300));
+  await new Promise(r => setTimeout(r, 500));
 
   const filename = `safety_checklist_${new Date().toISOString().slice(0,10)}.pdf`;
 
@@ -241,15 +246,15 @@ async function downloadPDF() {
     await html2pdf().set({
       margin: [10, 10, 10, 10],
       filename: filename,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 680 },
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, windowWidth: 680 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     }).from(container).save();
     showToast('PDF 다운로드 완료');
   } catch(e) {
     showToast('PDF 생성 중 오류가 발생했습니다', true);
   } finally {
-    document.body.removeChild(container);
+    document.body.removeChild(overlay);
   }
 }
 
